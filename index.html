@@ -1,0 +1,943 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>IPC — Instructions Per Clock</title>
+<meta name="description" content="IPC / Instructions Per Clock. A band tracking distortion per tick. Music, tour, log, frames." />
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght,SOFT,WONK@0,9..144,300..900,0..100,0..1;1,9..144,300..900,0..100,0..1&family=JetBrains+Mono:wght@300;400;500;600;700&family=Newsreader:ital,opsz,wght@0,6..72,300..800;1,6..72,300..800&display=swap" rel="stylesheet">
+<script src="https://cdn.tailwindcss.com"></script>
+<link rel="icon" href="data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'><rect width='64' height='64' rx='8' fill='%230a0806'/><text x='50%25' y='56%25' text-anchor='middle' dominant-baseline='middle' font-family='ui-monospace' font-size='22' font-weight='700' fill='%23ff5b1f' letter-spacing='2'>IPC</text></svg>">
+<script>
+  tailwind.config = {
+    theme: {
+      extend: {
+        colors: {
+          ink:     '#0a0806',
+          pitch:   '#14110d',
+          surface: '#1b1712',
+          bone:    '#ede6d4',
+          parch:   '#c9bfa8',
+          muted:   '#6a645a',
+          rule:    '#2a2520',
+          amber:   '#ff5b1f',
+          amber2:  '#ffb25a',
+          phos:    '#97c79a',
+          blood:   '#a8281a',
+        },
+        fontFamily: {
+          display: ['Fraunces', 'Newsreader', 'ui-serif', 'Georgia', 'serif'],
+          serif:   ['Newsreader', 'Fraunces', 'ui-serif', 'Georgia', 'serif'],
+          mono:    ['"JetBrains Mono"', 'ui-monospace', 'SFMono-Regular', 'monospace'],
+        },
+        letterSpacing: {
+          tightest: '-0.04em',
+          wider2:   '0.18em',
+          wider3:   '0.28em',
+        },
+      }
+    }
+  };
+</script>
+<style>
+  html, body { background:#0a0806; color:#ede6d4; }
+  body {
+    font-family: 'Newsreader', Georgia, serif;
+    font-feature-settings: 'ss01','ss02','cv11';
+    -webkit-font-smoothing: antialiased;
+  }
+  .font-display {
+    font-family: 'Fraunces', Georgia, serif;
+    font-variation-settings: 'opsz' 144, 'SOFT' 0, 'WONK' 1;
+  }
+  .display-head {
+    font-family: 'Fraunces', Georgia, serif;
+    font-variation-settings: 'opsz' 144, 'SOFT' 20, 'WONK' 1;
+    letter-spacing: -0.045em;
+    line-height: 0.86;
+  }
+  .italic-serif { font-style: italic; font-variation-settings: 'opsz' 144, 'SOFT' 100, 'WONK' 1; }
+
+  /* Grain overlay */
+  .grain::before {
+    content: '';
+    position: fixed; inset: 0;
+    pointer-events: none;
+    z-index: 60;
+    opacity: 0.08;
+    mix-blend-mode: overlay;
+    background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='240' height='240'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/><feColorMatrix values='0 0 0 0 0.93  0 0 0 0 0.9  0 0 0 0 0.82  0 0 0 1 0'/></filter><rect width='100%25' height='100%25' filter='url(%23n)'/></svg>");
+  }
+
+  /* Scanline atmosphere */
+  .scan::after {
+    content: '';
+    position: fixed; inset: 0;
+    pointer-events: none;
+    z-index: 55;
+    background: repeating-linear-gradient(to bottom, rgba(255,255,255,0.015) 0 1px, transparent 1px 3px);
+    mix-blend-mode: overlay;
+  }
+
+  /* Amber phosphor glow for specific accents */
+  .amber-glow { text-shadow: 0 0 14px rgba(255,91,31,0.35), 0 0 2px rgba(255,91,31,0.6); }
+  .phos-glow  { text-shadow: 0 0 10px rgba(151,199,154,0.25); }
+
+  /* Rules */
+  .hr-thin { height:1px; background: linear-gradient(to right, transparent, #2a2520 15%, #3a3127 50%, #2a2520 85%, transparent); }
+  .hr-amber { height:1px; background: linear-gradient(to right, transparent, rgba(255,91,31,0.6), transparent); }
+
+  /* Ticker animation */
+  @keyframes slide-left {
+    0% { transform: translateX(0); }
+    100% { transform: translateX(-50%); }
+  }
+  .ticker { animation: slide-left 62s linear infinite; will-change: transform; }
+
+  /* Pulse */
+  @keyframes breathe {
+    0%, 100% { opacity: 1; transform: scale(1); }
+    50% { opacity: 0.55; transform: scale(0.92); }
+  }
+  .breathe { animation: breathe 1.7s ease-in-out infinite; }
+
+  /* Clock cycle tick */
+  @keyframes tick {
+    0%,100% { opacity: 1; }
+    49%     { opacity: 1; }
+    50%,99% { opacity: 0.2; }
+  }
+  .tick { animation: tick 1s steps(2,end) infinite; }
+
+  /* Subtle radial glow behind hero */
+  .hero-glow {
+    background:
+      radial-gradient(ellipse 60% 40% at 70% 30%, rgba(255,91,31,0.10), transparent 70%),
+      radial-gradient(ellipse 40% 30% at 20% 80%, rgba(151,199,154,0.06), transparent 70%);
+  }
+
+  /* Marquee list hover */
+  .menu-line:hover .menu-label { color: #ff5b1f; letter-spacing: -0.03em; }
+  .menu-line:hover .menu-arrow { transform: translateX(6px); color:#ff5b1f; }
+  .menu-line:hover .menu-num   { color:#ede6d4; }
+
+  /* Image treatment */
+  .frame-img { filter: grayscale(0.3) contrast(1.05); }
+  .frame-img:hover { filter: grayscale(0) contrast(1); }
+
+  /* Offset rotate */
+  .tilt-r { transform: rotate(0.6deg); }
+  .tilt-l { transform: rotate(-0.5deg); }
+
+  /* Focus */
+  a:focus-visible, button:focus-visible { outline: 2px solid #ff5b1f; outline-offset: 3px; border-radius: 2px; }
+
+  /* Section number */
+  .sec-num { font-variant-numeric: tabular-nums; }
+
+  /* Blinking cursor */
+  @keyframes blink { 0%,50% { opacity:1;} 50.01%,100%{opacity:0;} }
+  .cursor { display:inline-block; width: 0.55em; height: 1em; background:#ff5b1f; vertical-align:-0.1em; animation: blink 1.06s steps(1,end) infinite; }
+
+  /* Tiny table rule hover */
+  .row:hover { background: linear-gradient(to right, rgba(255,91,31,0.06), transparent 80%); }
+  .row:hover .row-city { color:#ff5b1f; }
+
+  /* Divider strip */
+  .perfline {
+    background-image: repeating-linear-gradient(90deg, #2a2520 0 1px, transparent 1px 10px);
+    height: 1px;
+  }
+</style>
+</head>
+<body class="grain scan">
+  <!-- ======================= STATION BAR ======================= -->
+  <div class="border-b border-rule/80 bg-ink/90 backdrop-blur">
+    <div class="mx-auto max-w-[1360px] px-6 md:px-10 h-9 flex items-center justify-between font-mono text-[10.5px] uppercase tracking-wider3 text-muted">
+      <div class="flex items-center gap-5">
+        <span class="inline-flex items-center gap-2">
+          <span class="w-1.5 h-1.5 rounded-full bg-phos breathe"></span>
+          <span class="text-parch">BROADCAST ACTIVE</span>
+        </span>
+        <span class="hidden md:inline">SIG / <span class="text-bone">IPC-88.3</span></span>
+        <span class="hidden md:inline">GEO / <span class="text-bone">34.0522°N 118.2437°W</span></span>
+      </div>
+      <div class="flex items-center gap-5">
+        <span class="hidden sm:inline">MODE <span class="text-bone">— STUDIO</span></span>
+        <span class="tabular-nums text-bone" id="clock">00:00:00</span>
+        <span class="inline-flex items-center gap-1.5">
+          <span class="text-amber">●</span> REC
+        </span>
+      </div>
+    </div>
+  </div>
+
+  <!-- ======================= HEADER / NAV ======================= -->
+  <header class="relative">
+    <div class="mx-auto max-w-[1360px] px-6 md:px-10 pt-7 pb-4">
+      <div class="flex items-start justify-between gap-10">
+        <!-- Wordmark block -->
+        <a href="#top" class="group block">
+          <div class="flex items-center gap-3">
+            <!-- glyph -->
+            <svg width="38" height="38" viewBox="0 0 48 48" class="text-amber">
+              <circle cx="24" cy="24" r="21" fill="none" stroke="currentColor" stroke-width="1.4"/>
+              <circle cx="24" cy="24" r="14" fill="none" stroke="currentColor" stroke-width="0.8" opacity="0.6"/>
+              <line x1="24" y1="3" x2="24" y2="11" stroke="currentColor" stroke-width="1.4"/>
+              <line x1="24" y1="24" x2="36" y2="24" stroke="currentColor" stroke-width="1.4" class="tick"/>
+              <circle cx="24" cy="24" r="1.8" fill="currentColor"/>
+            </svg>
+            <div>
+              <div class="font-mono text-[11px] uppercase tracking-wider3 text-muted leading-none">Instructions / Per / Clock</div>
+              <div class="display-head text-[30px] text-bone leading-none mt-1">IPC<span class="text-amber">.</span></div>
+            </div>
+          </div>
+        </a>
+
+        <!-- Top nav -->
+        <nav class="hidden md:flex items-center gap-7 pt-3 font-mono text-[11.5px] uppercase tracking-wider3">
+          <a href="#signal" class="text-bone hover:text-amber transition-colors">Signal</a>
+          <a href="#itinerary" class="text-bone hover:text-amber transition-colors">Itinerary</a>
+          <a href="#log" class="text-bone hover:text-amber transition-colors">Log</a>
+          <a href="#frames" class="text-bone hover:text-amber transition-colors">Frames</a>
+          <a href="#about" class="text-bone hover:text-amber transition-colors">About</a>
+          <a href="#transmit" class="inline-flex items-center gap-2 border border-bone/50 hover:border-amber hover:text-amber text-bone px-3 py-1.5 transition-colors">
+            Subscribe <span aria-hidden>↗</span>
+          </a>
+        </nav>
+      </div>
+    </div>
+    <div class="perfline mx-6 md:mx-10"></div>
+  </header>
+
+  <!-- ======================= HERO ======================= -->
+  <section id="top" class="relative hero-glow">
+    <div class="mx-auto max-w-[1360px] px-6 md:px-10 pt-14 pb-20">
+      <!-- top meta strip -->
+      <div class="flex flex-col md:flex-row md:items-end md:justify-between gap-6 mb-10">
+        <div class="font-mono text-[10.5px] uppercase tracking-wider3 text-muted space-y-1">
+          <div>VOL. III · ISSUE 04 · SPRING 2026</div>
+          <div>FILED FROM <span class="text-bone">LOS ANGELES, CA</span></div>
+        </div>
+        <div class="flex items-center gap-4 font-mono text-[10.5px] uppercase tracking-wider3 text-muted">
+          <div class="hidden md:flex items-center gap-2">
+            <span class="w-12 h-[1px] bg-amber/60"></span>
+            <span>CPI <span class="text-bone tabular-nums">2.41</span></span>
+            <span>· BPM <span class="text-bone tabular-nums">138</span></span>
+            <span>· KEY <span class="text-bone">D ♭min</span></span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Display type -->
+      <div class="grid grid-cols-12 gap-6 items-end">
+        <h1 class="col-span-12 lg:col-span-9 display-head text-bone">
+          <span class="block text-[14vw] md:text-[10.2vw] lg:text-[170px]">Instructions</span>
+          <span class="block text-[14vw] md:text-[10.2vw] lg:text-[170px] pl-[6vw] lg:pl-24">
+            <span class="italic-serif text-parch">per</span>
+          </span>
+          <span class="block text-[14vw] md:text-[10.2vw] lg:text-[170px]">
+            Clock<span class="text-amber amber-glow">.</span>
+          </span>
+        </h1>
+
+        <!-- Right column copy -->
+        <aside class="col-span-12 lg:col-span-3 pb-4 lg:pl-6 lg:border-l lg:border-rule space-y-5">
+          <p class="font-serif text-[19px] leading-[1.55] text-parch">
+            A four-piece noise outfit tracking
+            <span class="text-bone italic-serif">distortion per tick</span> —
+            recorded to tape, released on rotation, played loud in rooms that shouldn&rsquo;t hold us.
+          </p>
+          <div class="flex flex-wrap gap-2">
+            <a href="#signal" class="inline-flex items-center gap-2 bg-amber text-ink px-4 py-2.5 font-mono text-[11px] uppercase tracking-wider3 hover:bg-amber2 transition-colors">
+              <span class="w-1.5 h-1.5 rounded-full bg-ink breathe"></span>
+              Play latest
+            </a>
+            <a href="#itinerary" class="inline-flex items-center gap-2 border border-bone/60 text-bone px-4 py-2.5 font-mono text-[11px] uppercase tracking-wider3 hover:border-amber hover:text-amber transition-colors">
+              Tour dates ↗
+            </a>
+          </div>
+          <dl class="font-mono text-[10.5px] uppercase tracking-wider3 text-muted pt-2 space-y-1.5">
+            <div class="flex justify-between"><dt>Cycles logged</dt><dd class="text-bone tabular-nums">1,948,221</dd></div>
+            <div class="flex justify-between"><dt>Shows / YTD</dt><dd class="text-bone tabular-nums">041</dd></div>
+            <div class="flex justify-between"><dt>Next dispatch</dt><dd class="text-bone">MAY 02</dd></div>
+          </dl>
+        </aside>
+      </div>
+
+      <!-- Ticker -->
+      <div class="mt-16 border-y border-rule overflow-hidden">
+        <div class="flex items-center">
+          <div class="shrink-0 bg-amber text-ink font-mono text-[11px] uppercase tracking-wider3 px-4 py-3">
+            ▸ NOW PLAYING
+          </div>
+          <div class="overflow-hidden flex-1 py-3">
+            <div class="ticker flex whitespace-nowrap font-mono text-[13px] uppercase tracking-wider2 text-parch">
+              <span class="flex">
+                <span class="px-8">&ldquo;Hymn for a Dying Bus&rdquo; — SIDE A · 04:12</span><span class="px-8 text-amber">●</span>
+                <span class="px-8">TOUR / EAST COAST ANNOUNCED — MAY 02 → JUN 14</span><span class="px-8 text-amber">●</span>
+                <span class="px-8">NEW 7" PRESSED ON BONE VINYL — LIMITED 300</span><span class="px-8 text-amber">●</span>
+                <span class="px-8">LATE LOG ENTRY: &ldquo;THE DRIVE FROM MARFA&rdquo;</span><span class="px-8 text-amber">●</span>
+                <span class="px-8">RECORDED LIVE AT THE PERMANENT RECORDS ROADHOUSE</span><span class="px-8 text-amber">●</span>
+              </span>
+              <span class="flex" aria-hidden="true">
+                <span class="px-8">&ldquo;Hymn for a Dying Bus&rdquo; — SIDE A · 04:12</span><span class="px-8 text-amber">●</span>
+                <span class="px-8">TOUR / EAST COAST ANNOUNCED — MAY 02 → JUN 14</span><span class="px-8 text-amber">●</span>
+                <span class="px-8">NEW 7" PRESSED ON BONE VINYL — LIMITED 300</span><span class="px-8 text-amber">●</span>
+                <span class="px-8">LATE LOG ENTRY: &ldquo;THE DRIVE FROM MARFA&rdquo;</span><span class="px-8 text-amber">●</span>
+                <span class="px-8">RECORDED LIVE AT THE PERMANENT RECORDS ROADHOUSE</span><span class="px-8 text-amber">●</span>
+              </span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ======================= CHANNEL MENU ======================= -->
+  <section id="menu" class="relative">
+    <div class="mx-auto max-w-[1360px] px-6 md:px-10 py-8 border-t border-rule">
+      <div class="grid grid-cols-12 gap-6">
+        <div class="col-span-12 lg:col-span-3">
+          <div class="font-mono text-[10.5px] uppercase tracking-wider3 text-muted">§ index</div>
+          <div class="display-head text-bone text-[44px] mt-1">Channels.</div>
+          <p class="mt-3 text-parch font-serif text-[16px] leading-[1.55] max-w-[26ch]">
+            Five transmissions. Pick a frequency.
+          </p>
+        </div>
+        <ul class="col-span-12 lg:col-span-9 divide-y divide-rule border-y border-rule">
+          <li>
+            <a href="#signal" class="menu-line group flex items-baseline gap-6 py-6">
+              <span class="menu-num font-mono text-[11px] uppercase tracking-wider3 text-muted w-10 transition-colors">CH_01</span>
+              <span class="menu-label display-head text-bone text-[44px] md:text-[56px] leading-none flex-1 transition-all">Signal <span class="italic-serif text-parch">— the music</span></span>
+              <span class="hidden md:inline font-mono text-[10.5px] uppercase tracking-wider3 text-muted">12 TRACKS · 2 EPS</span>
+              <span class="menu-arrow text-bone transition-all text-[28px] leading-none">→</span>
+            </a>
+          </li>
+          <li>
+            <a href="#itinerary" class="menu-line group flex items-baseline gap-6 py-6">
+              <span class="menu-num font-mono text-[11px] uppercase tracking-wider3 text-muted w-10 transition-colors">CH_02</span>
+              <span class="menu-label display-head text-bone text-[44px] md:text-[56px] leading-none flex-1 transition-all">Itinerary <span class="italic-serif text-parch">— where we&rsquo;ll be</span></span>
+              <span class="hidden md:inline font-mono text-[10.5px] uppercase tracking-wider3 text-muted">14 DATES · 09 CITIES</span>
+              <span class="menu-arrow text-bone transition-all text-[28px] leading-none">→</span>
+            </a>
+          </li>
+          <li>
+            <a href="#log" class="menu-line group flex items-baseline gap-6 py-6">
+              <span class="menu-num font-mono text-[11px] uppercase tracking-wider3 text-muted w-10 transition-colors">CH_03</span>
+              <span class="menu-label display-head text-bone text-[44px] md:text-[56px] leading-none flex-1 transition-all">Log <span class="italic-serif text-parch">— the writing</span></span>
+              <span class="hidden md:inline font-mono text-[10.5px] uppercase tracking-wider3 text-muted">37 ENTRIES · 2023→</span>
+              <span class="menu-arrow text-bone transition-all text-[28px] leading-none">→</span>
+            </a>
+          </li>
+          <li>
+            <a href="#frames" class="menu-line group flex items-baseline gap-6 py-6">
+              <span class="menu-num font-mono text-[11px] uppercase tracking-wider3 text-muted w-10 transition-colors">CH_04</span>
+              <span class="menu-label display-head text-bone text-[44px] md:text-[56px] leading-none flex-1 transition-all">Frames <span class="italic-serif text-parch">— from the road</span></span>
+              <span class="hidden md:inline font-mono text-[10.5px] uppercase tracking-wider3 text-muted">400+ PHOTOS</span>
+              <span class="menu-arrow text-bone transition-all text-[28px] leading-none">→</span>
+            </a>
+          </li>
+          <li>
+            <a href="#about" class="menu-line group flex items-baseline gap-6 py-6">
+              <span class="menu-num font-mono text-[11px] uppercase tracking-wider3 text-muted w-10 transition-colors">CH_05</span>
+              <span class="menu-label display-head text-bone text-[44px] md:text-[56px] leading-none flex-1 transition-all">About <span class="italic-serif text-parch">— the four of us</span></span>
+              <span class="hidden md:inline font-mono text-[10.5px] uppercase tracking-wider3 text-muted">EST. 2022</span>
+              <span class="menu-arrow text-bone transition-all text-[28px] leading-none">→</span>
+            </a>
+          </li>
+        </ul>
+      </div>
+    </div>
+  </section>
+
+  <!-- ======================= CH_01 / SIGNAL ======================= -->
+  <section id="signal" class="relative border-t border-rule">
+    <div class="mx-auto max-w-[1360px] px-6 md:px-10 py-20 md:py-28">
+      <div class="flex items-start justify-between gap-6 mb-14">
+        <div class="flex items-start gap-5">
+          <span class="sec-num font-mono text-[10.5px] uppercase tracking-wider3 text-amber mt-2">CH_01</span>
+          <h2 class="display-head text-bone text-[64px] md:text-[96px]">Signal.</h2>
+        </div>
+        <a href="#" class="hidden md:inline-flex items-center gap-2 font-mono text-[11px] uppercase tracking-wider3 text-bone border-b border-bone/30 hover:text-amber hover:border-amber pb-1 self-end transition-colors">
+          All releases ↗
+        </a>
+      </div>
+
+      <div class="grid grid-cols-12 gap-10 items-start">
+        <!-- Big cover -->
+        <div class="col-span-12 lg:col-span-7">
+          <figure class="relative">
+            <div class="aspect-[4/5] relative overflow-hidden border border-rule frame-img" style="background:
+              radial-gradient(ellipse 120% 60% at 70% 10%, rgba(255,91,31,0.34), transparent 60%),
+              radial-gradient(ellipse 80% 60% at 20% 90%, rgba(168,40,26,0.28), transparent 60%),
+              linear-gradient(180deg, #1b1712 0%, #0a0806 100%);">
+              <div class="absolute inset-0 opacity-[0.2]" style="background-image: repeating-linear-gradient(0deg, rgba(255,255,255,0.08) 0 1px, transparent 1px 3px);"></div>
+              <div class="absolute inset-0 mix-blend-multiply bg-gradient-to-tr from-ink via-transparent to-amber/20"></div>
+              <div class="absolute inset-0 bg-gradient-to-t from-ink/70 via-transparent to-transparent"></div>
+
+              <!-- Overlay meta -->
+              <div class="absolute top-4 left-4 right-4 flex items-center justify-between font-mono text-[10px] uppercase tracking-wider3 text-bone/80">
+                <span>◦ IPC-003 / SIDE A</span>
+                <span>TAPE / 2026</span>
+              </div>
+              <div class="absolute bottom-6 left-6 right-6">
+                <div class="font-mono text-[10.5px] uppercase tracking-wider3 text-amber mb-2">Latest single</div>
+                <div class="display-head text-bone text-[40px] md:text-[56px] leading-[0.9]">Hymn for a<br/>Dying Bus</div>
+              </div>
+            </div>
+
+            <figcaption class="mt-4 flex items-center justify-between font-mono text-[10.5px] uppercase tracking-wider3 text-muted">
+              <span>Recorded at <span class="text-bone">Old Sentinel, Eagle Rock</span></span>
+              <span class="tabular-nums">04:12</span>
+            </figcaption>
+          </figure>
+        </div>
+
+        <!-- Player + tracks -->
+        <div class="col-span-12 lg:col-span-5 space-y-8">
+          <!-- Pseudo player -->
+          <div class="border border-rule bg-pitch/70 p-5">
+            <div class="flex items-center gap-3">
+              <button aria-label="Play" class="w-11 h-11 rounded-full bg-amber text-ink grid place-items-center hover:bg-amber2 transition-colors shrink-0">
+                <svg width="13" height="14" viewBox="0 0 13 14" fill="currentColor"><path d="M1 0.5v13l11-6.5L1 0.5z"/></svg>
+              </button>
+              <div class="flex-1 min-w-0">
+                <div class="font-mono text-[10px] uppercase tracking-wider3 text-muted">Now cued</div>
+                <div class="font-display text-bone text-[17px] truncate">Hymn for a Dying Bus</div>
+              </div>
+              <div class="font-mono text-[11px] tabular-nums text-muted">00:00 / 04:12</div>
+            </div>
+            <div class="mt-4 h-[3px] bg-rule relative overflow-hidden">
+              <div class="absolute inset-y-0 left-0 w-[18%] bg-amber"></div>
+              <div class="absolute inset-y-0 left-0 w-[18%] shadow-[0_0_14px_rgba(255,91,31,0.6)]"></div>
+            </div>
+            <!-- EQ -->
+            <div class="mt-4 flex items-end gap-[3px] h-10">
+              <!-- bars via inline for motion variety -->
+              <span class="w-[3px] bg-bone/70" style="height:40%"></span>
+              <span class="w-[3px] bg-bone/70" style="height:70%"></span>
+              <span class="w-[3px] bg-amber"   style="height:95%"></span>
+              <span class="w-[3px] bg-bone/70" style="height:55%"></span>
+              <span class="w-[3px] bg-bone/70" style="height:80%"></span>
+              <span class="w-[3px] bg-amber"   style="height:30%"></span>
+              <span class="w-[3px] bg-bone/70" style="height:65%"></span>
+              <span class="w-[3px] bg-bone/70" style="height:45%"></span>
+              <span class="w-[3px] bg-amber"   style="height:90%"></span>
+              <span class="w-[3px] bg-bone/70" style="height:60%"></span>
+              <span class="w-[3px] bg-bone/70" style="height:75%"></span>
+              <span class="w-[3px] bg-amber"   style="height:20%"></span>
+              <span class="w-[3px] bg-bone/70" style="height:55%"></span>
+              <span class="w-[3px] bg-bone/70" style="height:85%"></span>
+              <span class="w-[3px] bg-amber"   style="height:40%"></span>
+              <span class="w-[3px] bg-bone/70" style="height:70%"></span>
+              <span class="w-[3px] bg-bone/70" style="height:95%"></span>
+              <span class="w-[3px] bg-amber"   style="height:50%"></span>
+              <span class="w-[3px] bg-bone/70" style="height:35%"></span>
+              <span class="w-[3px] bg-bone/70" style="height:80%"></span>
+              <span class="w-[3px] bg-amber"   style="height:60%"></span>
+              <span class="w-[3px] bg-bone/70" style="height:75%"></span>
+              <span class="w-[3px] bg-bone/70" style="height:45%"></span>
+              <span class="w-[3px] bg-amber"   style="height:65%"></span>
+            </div>
+          </div>
+
+          <!-- Track list -->
+          <div>
+            <div class="flex items-center justify-between mb-4">
+              <div class="font-mono text-[10.5px] uppercase tracking-wider3 text-muted">B/Side &amp; Catalog</div>
+              <div class="font-mono text-[10.5px] uppercase tracking-wider3 text-muted">DUR</div>
+            </div>
+            <ol class="divide-y divide-rule border-y border-rule">
+              <li class="py-3 flex items-center gap-4">
+                <span class="font-mono text-[11px] text-muted w-8 tabular-nums">01 ·</span>
+                <span class="flex-1 font-display text-bone">Hymn for a Dying Bus</span>
+                <span class="font-mono text-[10.5px] uppercase tracking-wider3 text-amber">A-SIDE</span>
+                <span class="font-mono text-[11px] text-parch tabular-nums">4:12</span>
+              </li>
+              <li class="py-3 flex items-center gap-4">
+                <span class="font-mono text-[11px] text-muted w-8 tabular-nums">02 ·</span>
+                <span class="flex-1 font-display text-bone">Cold Cathode Sunrise</span>
+                <span class="font-mono text-[10.5px] uppercase tracking-wider3 text-muted">B-SIDE</span>
+                <span class="font-mono text-[11px] text-parch tabular-nums">5:48</span>
+              </li>
+              <li class="py-3 flex items-center gap-4">
+                <span class="font-mono text-[11px] text-muted w-8 tabular-nums">03 ·</span>
+                <span class="flex-1 font-display text-bone">Ghosts in the Register</span>
+                <span class="font-mono text-[10.5px] uppercase tracking-wider3 text-muted">EP / II</span>
+                <span class="font-mono text-[11px] text-parch tabular-nums">3:29</span>
+              </li>
+              <li class="py-3 flex items-center gap-4">
+                <span class="font-mono text-[11px] text-muted w-8 tabular-nums">04 ·</span>
+                <span class="flex-1 font-display text-bone">The Drive from Marfa</span>
+                <span class="font-mono text-[10.5px] uppercase tracking-wider3 text-muted">EP / II</span>
+                <span class="font-mono text-[11px] text-parch tabular-nums">6:02</span>
+              </li>
+              <li class="py-3 flex items-center gap-4">
+                <span class="font-mono text-[11px] text-muted w-8 tabular-nums">05 ·</span>
+                <span class="flex-1 font-display text-bone">Reverie, Demo Take</span>
+                <span class="font-mono text-[10.5px] uppercase tracking-wider3 text-muted">LOOSE</span>
+                <span class="font-mono text-[11px] text-parch tabular-nums">2:51</span>
+              </li>
+            </ol>
+          </div>
+
+          <div class="flex flex-wrap gap-3">
+            <a href="#" class="font-mono text-[11px] uppercase tracking-wider3 text-bone border-b border-bone/30 pb-1 hover:text-amber hover:border-amber transition-colors">Listen on Bandcamp ↗</a>
+            <span class="text-muted">·</span>
+            <a href="#" class="font-mono text-[11px] uppercase tracking-wider3 text-bone border-b border-bone/30 pb-1 hover:text-amber hover:border-amber transition-colors">Spotify ↗</a>
+            <span class="text-muted">·</span>
+            <a href="#" class="font-mono text-[11px] uppercase tracking-wider3 text-bone border-b border-bone/30 pb-1 hover:text-amber hover:border-amber transition-colors">Apple Music ↗</a>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ======================= CH_02 / ITINERARY ======================= -->
+  <section id="itinerary" class="relative border-t border-rule bg-pitch/30">
+    <div class="mx-auto max-w-[1360px] px-6 md:px-10 py-20 md:py-28">
+      <div class="flex items-start justify-between gap-6 mb-14">
+        <div class="flex items-start gap-5">
+          <span class="sec-num font-mono text-[10.5px] uppercase tracking-wider3 text-amber mt-2">CH_02</span>
+          <div>
+            <h2 class="display-head text-bone text-[64px] md:text-[96px]">Itinerary.</h2>
+            <p class="font-serif italic-serif text-parch text-[19px] mt-2 max-w-[40ch]">Spring &rsquo;26 run — east coast, midwest, one long drive across Texas.</p>
+          </div>
+        </div>
+        <a href="#" class="hidden md:inline-flex items-center gap-2 font-mono text-[11px] uppercase tracking-wider3 text-bone border-b border-bone/30 hover:text-amber hover:border-amber pb-1 self-end transition-colors">
+          Full itinerary ↗
+        </a>
+      </div>
+
+      <!-- header row -->
+      <div class="grid grid-cols-12 gap-4 py-3 border-y border-rule font-mono text-[10.5px] uppercase tracking-wider3 text-muted">
+        <div class="col-span-2">Date</div>
+        <div class="col-span-3">City</div>
+        <div class="col-span-4">Venue</div>
+        <div class="col-span-2">With</div>
+        <div class="col-span-1 text-right">Status</div>
+      </div>
+
+      <div class="divide-y divide-rule">
+        <!-- rows -->
+        <div class="row grid grid-cols-12 gap-4 py-5 items-baseline transition-colors">
+          <div class="col-span-2 font-mono text-[13px] tabular-nums text-bone">05.02<span class="text-muted">&nbsp;·&nbsp;FRI</span></div>
+          <div class="col-span-3 row-city font-display text-[24px] text-bone transition-colors">Austin, TX</div>
+          <div class="col-span-4 text-parch">Hotel Vegas <span class="text-muted">/ Outside</span></div>
+          <div class="col-span-2 font-mono text-[11px] text-muted uppercase tracking-wider2">Slow Hollows</div>
+          <div class="col-span-1 text-right font-mono text-[10.5px] uppercase tracking-wider3 text-phos">◉ ON SALE</div>
+        </div>
+        <div class="row grid grid-cols-12 gap-4 py-5 items-baseline transition-colors">
+          <div class="col-span-2 font-mono text-[13px] tabular-nums text-bone">05.04<span class="text-muted">&nbsp;·&nbsp;SUN</span></div>
+          <div class="col-span-3 row-city font-display text-[24px] text-bone transition-colors">Marfa, TX</div>
+          <div class="col-span-4 text-parch">Lost Horse Saloon</div>
+          <div class="col-span-2 font-mono text-[11px] text-muted uppercase tracking-wider2">—</div>
+          <div class="col-span-1 text-right font-mono text-[10.5px] uppercase tracking-wider3 text-phos">◉ ON SALE</div>
+        </div>
+        <div class="row grid grid-cols-12 gap-4 py-5 items-baseline transition-colors">
+          <div class="col-span-2 font-mono text-[13px] tabular-nums text-bone">05.09<span class="text-muted">&nbsp;·&nbsp;FRI</span></div>
+          <div class="col-span-3 row-city font-display text-[24px] text-bone transition-colors">New Orleans, LA</div>
+          <div class="col-span-4 text-parch">Gasa Gasa</div>
+          <div class="col-span-2 font-mono text-[11px] text-muted uppercase tracking-wider2">Cruel Diagonals</div>
+          <div class="col-span-1 text-right font-mono text-[10.5px] uppercase tracking-wider3 text-amber">◉ FEW LEFT</div>
+        </div>
+        <div class="row grid grid-cols-12 gap-4 py-5 items-baseline transition-colors">
+          <div class="col-span-2 font-mono text-[13px] tabular-nums text-bone">05.14<span class="text-muted">&nbsp;·&nbsp;WED</span></div>
+          <div class="col-span-3 row-city font-display text-[24px] text-bone transition-colors">Atlanta, GA</div>
+          <div class="col-span-4 text-parch">529 <span class="text-muted">/ East Atl.</span></div>
+          <div class="col-span-2 font-mono text-[11px] text-muted uppercase tracking-wider2">Hex Wave</div>
+          <div class="col-span-1 text-right font-mono text-[10.5px] uppercase tracking-wider3 text-phos">◉ ON SALE</div>
+        </div>
+        <div class="row grid grid-cols-12 gap-4 py-5 items-baseline transition-colors">
+          <div class="col-span-2 font-mono text-[13px] tabular-nums text-bone">05.18<span class="text-muted">&nbsp;·&nbsp;SUN</span></div>
+          <div class="col-span-3 row-city font-display text-[24px] text-bone transition-colors">Asheville, NC</div>
+          <div class="col-span-4 text-parch">The Grey Eagle</div>
+          <div class="col-span-2 font-mono text-[11px] text-muted uppercase tracking-wider2">Cruel Diagonals</div>
+          <div class="col-span-1 text-right font-mono text-[10.5px] uppercase tracking-wider3 text-blood">◉ SOLD OUT</div>
+        </div>
+        <div class="row grid grid-cols-12 gap-4 py-5 items-baseline transition-colors">
+          <div class="col-span-2 font-mono text-[13px] tabular-nums text-bone">05.22<span class="text-muted">&nbsp;·&nbsp;THU</span></div>
+          <div class="col-span-3 row-city font-display text-[24px] text-bone transition-colors">Philadelphia, PA</div>
+          <div class="col-span-4 text-parch">Johnny Brenda&rsquo;s</div>
+          <div class="col-span-2 font-mono text-[11px] text-muted uppercase tracking-wider2">Ether Trail</div>
+          <div class="col-span-1 text-right font-mono text-[10.5px] uppercase tracking-wider3 text-phos">◉ ON SALE</div>
+        </div>
+        <div class="row grid grid-cols-12 gap-4 py-5 items-baseline transition-colors">
+          <div class="col-span-2 font-mono text-[13px] tabular-nums text-bone">05.24<span class="text-muted">&nbsp;·&nbsp;SAT</span></div>
+          <div class="col-span-3 row-city font-display text-[24px] text-bone transition-colors">Brooklyn, NY</div>
+          <div class="col-span-4 text-parch">Saint Vitus Bar</div>
+          <div class="col-span-2 font-mono text-[11px] text-muted uppercase tracking-wider2">Palehound</div>
+          <div class="col-span-1 text-right font-mono text-[10.5px] uppercase tracking-wider3 text-blood">◉ SOLD OUT</div>
+        </div>
+        <div class="row grid grid-cols-12 gap-4 py-5 items-baseline transition-colors">
+          <div class="col-span-2 font-mono text-[13px] tabular-nums text-bone">05.29<span class="text-muted">&nbsp;·&nbsp;THU</span></div>
+          <div class="col-span-3 row-city font-display text-[24px] text-bone transition-colors">Chicago, IL</div>
+          <div class="col-span-4 text-parch">Empty Bottle</div>
+          <div class="col-span-2 font-mono text-[11px] text-muted uppercase tracking-wider2">Dehd</div>
+          <div class="col-span-1 text-right font-mono text-[10.5px] uppercase tracking-wider3 text-phos">◉ ON SALE</div>
+        </div>
+        <div class="row grid grid-cols-12 gap-4 py-5 items-baseline transition-colors">
+          <div class="col-span-2 font-mono text-[13px] tabular-nums text-bone">06.14<span class="text-muted">&nbsp;·&nbsp;SAT</span></div>
+          <div class="col-span-3 row-city font-display text-[24px] text-bone transition-colors">Los Angeles, CA</div>
+          <div class="col-span-4 text-parch">The Echo <span class="text-muted">/ Homecoming</span></div>
+          <div class="col-span-2 font-mono text-[11px] text-muted uppercase tracking-wider2">Special Guests</div>
+          <div class="col-span-1 text-right font-mono text-[10.5px] uppercase tracking-wider3 text-amber">◉ PRESALE</div>
+        </div>
+      </div>
+
+      <div class="mt-10 flex items-center justify-between font-mono text-[10.5px] uppercase tracking-wider3 text-muted">
+        <span>9 of 14 dates shown</span>
+        <a href="#" class="text-bone hover:text-amber transition-colors border-b border-bone/30 hover:border-amber pb-0.5">See all dates ↗</a>
+      </div>
+    </div>
+  </section>
+
+  <!-- ======================= CH_03 / LOG ======================= -->
+  <section id="log" class="relative border-t border-rule">
+    <div class="mx-auto max-w-[1360px] px-6 md:px-10 py-20 md:py-28">
+      <div class="flex items-start justify-between gap-6 mb-14">
+        <div class="flex items-start gap-5">
+          <span class="sec-num font-mono text-[10.5px] uppercase tracking-wider3 text-amber mt-2">CH_03</span>
+          <div>
+            <h2 class="display-head text-bone text-[64px] md:text-[96px]">Log.</h2>
+            <p class="font-serif italic-serif text-parch text-[19px] mt-2 max-w-[42ch]">Field notes, recording journals, the occasional rant — dispatched from wherever we are.</p>
+          </div>
+        </div>
+        <a href="#" class="hidden md:inline-flex items-center gap-2 font-mono text-[11px] uppercase tracking-wider3 text-bone border-b border-bone/30 hover:text-amber hover:border-amber pb-1 self-end transition-colors">All entries ↗</a>
+      </div>
+
+      <div class="grid grid-cols-12 gap-6 md:gap-10">
+        <!-- Featured post -->
+        <article class="col-span-12 lg:col-span-7 border border-rule bg-pitch/50 group hover:border-amber/50 transition-colors">
+          <a href="#" class="block">
+            <div class="aspect-[16/10] relative overflow-hidden border-b border-rule frame-img" style="background:
+              radial-gradient(ellipse 100% 70% at 30% 20%, rgba(255,178,90,0.26), transparent 60%),
+              radial-gradient(ellipse 80% 60% at 90% 90%, rgba(168,40,26,0.28), transparent 60%),
+              linear-gradient(160deg, #1b1712 0%, #0a0806 100%);">
+              <div class="absolute inset-0 opacity-[0.16]" style="background-image: repeating-linear-gradient(0deg, rgba(255,255,255,0.08) 0 1px, transparent 1px 3px);"></div>
+              <div class="absolute inset-0 bg-gradient-to-t from-ink/70 to-transparent"></div>
+              <div class="absolute top-4 left-4 font-mono text-[10px] uppercase tracking-wider3 text-bone bg-ink/70 px-2 py-1 backdrop-blur">ENTRY 037 · TOUR JOURNAL</div>
+            </div>
+            <div class="p-7 md:p-8">
+              <div class="font-mono text-[10.5px] uppercase tracking-wider3 text-muted flex items-center gap-3">
+                <span>APR 14 · 2026</span><span>·</span><span>9 min read</span>
+              </div>
+              <h3 class="display-head text-bone text-[40px] md:text-[52px] mt-3 leading-[0.95] group-hover:text-amber transition-colors">The drive from Marfa.</h3>
+              <p class="font-serif text-parch text-[17px] leading-[1.6] mt-4 max-w-[60ch]">
+                We left at 3am because the light out there at 4:30 is something you can&rsquo;t fake in a studio.
+                The van&rsquo;s tape deck is half-working now. Everything on it sounds like us&mdash;
+                <span class="italic-serif">drenched, underwater, beautiful from a distance.</span>
+              </p>
+              <div class="mt-6 inline-flex items-center gap-2 font-mono text-[11px] uppercase tracking-wider3 text-bone group-hover:text-amber transition-colors">
+                Continue reading <span aria-hidden>→</span>
+              </div>
+            </div>
+          </a>
+        </article>
+
+        <!-- Secondary posts -->
+        <div class="col-span-12 lg:col-span-5 flex flex-col divide-y divide-rule border-y border-rule">
+          <a href="#" class="group flex gap-5 py-6 hover:bg-pitch/40 -mx-2 px-2 transition-colors">
+            <div class="w-24 shrink-0 font-mono text-[10.5px] uppercase tracking-wider3 text-muted tabular-nums">
+              APR 02<br/><span class="text-parch">ENTRY 036</span>
+            </div>
+            <div class="flex-1">
+              <div class="font-mono text-[10px] uppercase tracking-wider3 text-amber mb-1">RECORDING JOURNAL</div>
+              <h4 class="display-head text-bone text-[24px] leading-[1.05] group-hover:text-amber transition-colors">Two weeks in the cathode room.</h4>
+              <p class="font-serif text-parch text-[15px] leading-[1.55] mt-2 line-clamp-2">
+                On mic&rsquo;ing the wrong things, Nagra tapes, the tiny miracle of a broken spring reverb.
+              </p>
+            </div>
+          </a>
+          <a href="#" class="group flex gap-5 py-6 hover:bg-pitch/40 -mx-2 px-2 transition-colors">
+            <div class="w-24 shrink-0 font-mono text-[10.5px] uppercase tracking-wider3 text-muted tabular-nums">
+              MAR 18<br/><span class="text-parch">ENTRY 035</span>
+            </div>
+            <div class="flex-1">
+              <div class="font-mono text-[10px] uppercase tracking-wider3 text-amber mb-1">DISPATCH</div>
+              <h4 class="display-head text-bone text-[24px] leading-[1.05] group-hover:text-amber transition-colors">A short note on quitting the monitor.</h4>
+              <p class="font-serif text-parch text-[15px] leading-[1.55] mt-2 line-clamp-2">
+                Why we took the ears off the board and mixed the 7&Prime; entirely on a pair of car speakers.
+              </p>
+            </div>
+          </a>
+          <a href="#" class="group flex gap-5 py-6 hover:bg-pitch/40 -mx-2 px-2 transition-colors">
+            <div class="w-24 shrink-0 font-mono text-[10.5px] uppercase tracking-wider3 text-muted tabular-nums">
+              MAR 01<br/><span class="text-parch">ENTRY 034</span>
+            </div>
+            <div class="flex-1">
+              <div class="font-mono text-[10px] uppercase tracking-wider3 text-amber mb-1">SHOW NOTES</div>
+              <h4 class="display-head text-bone text-[24px] leading-[1.05] group-hover:text-amber transition-colors">Permanent Records, a love letter.</h4>
+              <p class="font-serif text-parch text-[15px] leading-[1.55] mt-2 line-clamp-2">
+                The roadhouse, the patient crowd, and the sound guy who saved us when the rig blew.
+              </p>
+            </div>
+          </a>
+          <a href="#" class="group flex gap-5 py-6 hover:bg-pitch/40 -mx-2 px-2 transition-colors">
+            <div class="w-24 shrink-0 font-mono text-[10.5px] uppercase tracking-wider3 text-muted tabular-nums">
+              FEB 11<br/><span class="text-parch">ENTRY 033</span>
+            </div>
+            <div class="flex-1">
+              <div class="font-mono text-[10px] uppercase tracking-wider3 text-amber mb-1">ESSAY</div>
+              <h4 class="display-head text-bone text-[24px] leading-[1.05] group-hover:text-amber transition-colors">Instructions, per clock — what we&rsquo;re counting.</h4>
+              <p class="font-serif text-parch text-[15px] leading-[1.55] mt-2 line-clamp-2">
+                Why we picked a CPU metric as a name. Distortion, tempo, and the small numbers nobody tracks.
+              </p>
+            </div>
+          </a>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ======================= CH_04 / FRAMES ======================= -->
+  <section id="frames" class="relative border-t border-rule bg-pitch/30">
+    <div class="mx-auto max-w-[1360px] px-6 md:px-10 py-20 md:py-28">
+      <div class="flex items-start justify-between gap-6 mb-14">
+        <div class="flex items-start gap-5">
+          <span class="sec-num font-mono text-[10.5px] uppercase tracking-wider3 text-amber mt-2">CH_04</span>
+          <div>
+            <h2 class="display-head text-bone text-[64px] md:text-[96px]">Frames.</h2>
+            <p class="font-serif italic-serif text-parch text-[19px] mt-2 max-w-[42ch]">Thirty-five millimeter scraps from the last twelve months.</p>
+          </div>
+        </div>
+        <a href="#" class="hidden md:inline-flex items-center gap-2 font-mono text-[11px] uppercase tracking-wider3 text-bone border-b border-bone/30 hover:text-amber hover:border-amber pb-1 self-end transition-colors">Full archive ↗</a>
+      </div>
+
+      <div class="grid grid-cols-12 gap-4 md:gap-5">
+        <figure class="col-span-12 md:col-span-7 relative overflow-hidden">
+          <div class="w-full aspect-[9/6] bg-pitch frame-img relative" style="background:
+            radial-gradient(ellipse 90% 70% at 80% 20%, rgba(255,91,31,0.4), transparent 60%),
+            radial-gradient(ellipse 60% 50% at 10% 90%, rgba(151,199,154,0.22), transparent 60%),
+            linear-gradient(180deg, #1b1712 0%, #0a0806 100%);">
+            <div class="absolute inset-0 opacity-20" style="background-image: repeating-linear-gradient(0deg, rgba(255,255,255,0.06) 0 1px, transparent 1px 3px);"></div>
+          </div>
+          <figcaption class="absolute bottom-3 left-3 font-mono text-[10px] uppercase tracking-wider3 text-bone bg-ink/70 px-2 py-1 backdrop-blur">ROLL 14 · FRAME 09 · KODAK 400</figcaption>
+        </figure>
+        <figure class="col-span-6 md:col-span-5 relative overflow-hidden">
+          <div class="w-full aspect-[1/1] frame-img relative" style="background:
+            radial-gradient(ellipse 100% 80% at 50% 0%, rgba(201,191,168,0.18), transparent 60%),
+            linear-gradient(140deg, #14110d 20%, #1b1712 100%);">
+            <div class="absolute inset-0 opacity-[0.14]" style="background-image: repeating-linear-gradient(90deg, rgba(255,255,255,0.1) 0 1px, transparent 1px 4px);"></div>
+          </div>
+          <figcaption class="absolute bottom-3 left-3 font-mono text-[10px] uppercase tracking-wider3 text-bone bg-ink/70 px-2 py-1 backdrop-blur">ROLL 12 · FRAME 22</figcaption>
+        </figure>
+        <figure class="col-span-6 md:col-span-3 relative overflow-hidden">
+          <div class="w-full aspect-[5/6] frame-img relative" style="background:
+            radial-gradient(ellipse 120% 60% at 50% 100%, rgba(168,40,26,0.35), transparent 60%),
+            linear-gradient(180deg, #0f0c09 0%, #14110d 100%);">
+            <div class="absolute inset-0 opacity-[0.14]" style="background-image: repeating-linear-gradient(0deg, rgba(255,255,255,0.08) 0 1px, transparent 1px 3px);"></div>
+          </div>
+          <figcaption class="absolute bottom-3 left-3 font-mono text-[10px] uppercase tracking-wider3 text-bone bg-ink/70 px-2 py-1 backdrop-blur">ROLL 09 · FRAME 05</figcaption>
+        </figure>
+        <figure class="col-span-6 md:col-span-4 relative overflow-hidden">
+          <div class="w-full aspect-[6/5] frame-img relative" style="background:
+            radial-gradient(ellipse 80% 80% at 30% 30%, rgba(255,178,90,0.28), transparent 60%),
+            linear-gradient(160deg, #1b1712 0%, #0a0806 100%);">
+            <div class="absolute inset-0 opacity-[0.14]" style="background-image: repeating-linear-gradient(0deg, rgba(255,255,255,0.07) 0 1px, transparent 1px 3px);"></div>
+          </div>
+          <figcaption class="absolute bottom-3 left-3 font-mono text-[10px] uppercase tracking-wider3 text-bone bg-ink/70 px-2 py-1 backdrop-blur">ROLL 17 · FRAME 12</figcaption>
+        </figure>
+        <figure class="col-span-12 md:col-span-5 relative overflow-hidden">
+          <div class="w-full aspect-[9/5] frame-img relative" style="background:
+            radial-gradient(ellipse 80% 120% at 90% 50%, rgba(151,199,154,0.2), transparent 60%),
+            radial-gradient(ellipse 60% 80% at 20% 30%, rgba(255,91,31,0.22), transparent 60%),
+            linear-gradient(180deg, #14110d 0%, #0a0806 100%);">
+            <div class="absolute inset-0 opacity-[0.14]" style="background-image: repeating-linear-gradient(0deg, rgba(255,255,255,0.07) 0 1px, transparent 1px 3px);"></div>
+          </div>
+          <figcaption class="absolute bottom-3 left-3 font-mono text-[10px] uppercase tracking-wider3 text-bone bg-ink/70 px-2 py-1 backdrop-blur">ROLL 21 · FRAME 03 · CINESTILL 800T</figcaption>
+        </figure>
+      </div>
+    </div>
+  </section>
+
+  <!-- ======================= CH_05 / ABOUT ======================= -->
+  <section id="about" class="relative border-t border-rule">
+    <div class="mx-auto max-w-[1360px] px-6 md:px-10 py-20 md:py-28">
+      <div class="grid grid-cols-12 gap-10">
+        <div class="col-span-12 lg:col-span-5">
+          <div class="flex items-start gap-5">
+            <span class="sec-num font-mono text-[10.5px] uppercase tracking-wider3 text-amber mt-2">CH_05</span>
+            <h2 class="display-head text-bone text-[64px] md:text-[88px]">About.</h2>
+          </div>
+          <p class="font-serif text-parch text-[19px] leading-[1.6] mt-6">
+            IPC &mdash; <span class="italic-serif">Instructions Per Clock</span> &mdash; is a four-piece out of Los Angeles.
+            We formed in a garage in <span class="text-bone">2022</span>, wrote a lot of songs we threw away,
+            and kept the ones that still sounded true at <span class="text-bone">3am</span>.
+          </p>
+          <p class="font-serif text-parch text-[17px] leading-[1.65] mt-5">
+            The name&rsquo;s a CPU metric. It measures how much actual work a machine does per tick of its clock.
+            We think about it every time we&rsquo;re on stage.
+          </p>
+        </div>
+
+        <div class="col-span-12 lg:col-span-7 grid grid-cols-2 gap-5">
+          <figure class="col-span-1">
+            <div class="aspect-[3/4] overflow-hidden border border-rule relative frame-img" style="background:
+              radial-gradient(ellipse 120% 70% at 50% 10%, rgba(255,91,31,0.3), transparent 60%),
+              linear-gradient(180deg, #14110d 0%, #0a0806 100%);">
+              <div class="absolute inset-0 opacity-[0.14]" style="background-image: repeating-linear-gradient(0deg, rgba(255,255,255,0.08) 0 1px, transparent 1px 3px);"></div>
+              <div class="absolute inset-0 bg-gradient-to-t from-ink/80 via-transparent to-transparent"></div>
+              <figcaption class="absolute bottom-4 left-4 right-4">
+                <div class="font-mono text-[10px] uppercase tracking-wider3 text-amber">VOX · GUITAR</div>
+                <div class="display-head text-bone text-[22px] leading-none mt-1">J. Marquez</div>
+              </figcaption>
+            </div>
+          </figure>
+          <figure class="col-span-1 mt-8">
+            <div class="aspect-[3/4] overflow-hidden border border-rule relative frame-img" style="background:
+              radial-gradient(ellipse 100% 70% at 80% 20%, rgba(201,191,168,0.18), transparent 60%),
+              linear-gradient(160deg, #1b1712 0%, #0f0c09 100%);">
+              <div class="absolute inset-0 opacity-[0.14]" style="background-image: repeating-linear-gradient(0deg, rgba(255,255,255,0.07) 0 1px, transparent 1px 3px);"></div>
+              <div class="absolute inset-0 bg-gradient-to-t from-ink/80 via-transparent to-transparent"></div>
+              <figcaption class="absolute bottom-4 left-4 right-4">
+                <div class="font-mono text-[10px] uppercase tracking-wider3 text-amber">GUITAR · SYNTH</div>
+                <div class="display-head text-bone text-[22px] leading-none mt-1">A. Nguyen</div>
+              </figcaption>
+            </div>
+          </figure>
+          <figure class="col-span-1">
+            <div class="aspect-[3/4] overflow-hidden border border-rule relative frame-img" style="background:
+              radial-gradient(ellipse 100% 70% at 20% 80%, rgba(168,40,26,0.3), transparent 60%),
+              linear-gradient(200deg, #14110d 0%, #0a0806 100%);">
+              <div class="absolute inset-0 opacity-[0.14]" style="background-image: repeating-linear-gradient(0deg, rgba(255,255,255,0.08) 0 1px, transparent 1px 3px);"></div>
+              <div class="absolute inset-0 bg-gradient-to-t from-ink/80 via-transparent to-transparent"></div>
+              <figcaption class="absolute bottom-4 left-4 right-4">
+                <div class="font-mono text-[10px] uppercase tracking-wider3 text-amber">BASS</div>
+                <div class="display-head text-bone text-[22px] leading-none mt-1">R. Okafor</div>
+              </figcaption>
+            </div>
+          </figure>
+          <figure class="col-span-1 mt-8">
+            <div class="aspect-[3/4] overflow-hidden border border-rule relative frame-img" style="background:
+              radial-gradient(ellipse 100% 80% at 60% 30%, rgba(151,199,154,0.22), transparent 60%),
+              linear-gradient(140deg, #1b1712 0%, #0f0c09 100%);">
+              <div class="absolute inset-0 opacity-[0.14]" style="background-image: repeating-linear-gradient(0deg, rgba(255,255,255,0.07) 0 1px, transparent 1px 3px);"></div>
+              <div class="absolute inset-0 bg-gradient-to-t from-ink/80 via-transparent to-transparent"></div>
+              <figcaption class="absolute bottom-4 left-4 right-4">
+                <div class="font-mono text-[10px] uppercase tracking-wider3 text-amber">DRUMS</div>
+                <div class="display-head text-bone text-[22px] leading-none mt-1">S. Holland</div>
+              </figcaption>
+            </div>
+          </figure>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ======================= TRANSMIT / NEWSLETTER ======================= -->
+  <section id="transmit" class="relative border-t border-rule">
+    <div class="mx-auto max-w-[1360px] px-6 md:px-10 py-20 md:py-28 hero-glow">
+      <div class="grid grid-cols-12 gap-10 items-end">
+        <div class="col-span-12 lg:col-span-8">
+          <div class="font-mono text-[10.5px] uppercase tracking-wider3 text-amber">§ transmit</div>
+          <h2 class="display-head text-bone text-[64px] md:text-[110px] mt-2">
+            Tune in.<span class="cursor align-middle ml-3"></span>
+          </h2>
+          <p class="font-serif text-parch text-[19px] leading-[1.55] mt-4 max-w-[52ch]">
+            Monthly dispatch &mdash; new music, tour announcements, and the occasional tape demo you won&rsquo;t find anywhere else. No spam. Read in a minute.
+          </p>
+        </div>
+        <form class="col-span-12 lg:col-span-4 space-y-3" onsubmit="event.preventDefault(); this.querySelector('.done').classList.remove('hidden'); this.querySelector('input').value='';">
+          <label class="block font-mono text-[10px] uppercase tracking-wider3 text-muted">CHANNEL / EMAIL</label>
+          <div class="flex border border-bone/40 focus-within:border-amber transition-colors">
+            <input type="email" required placeholder="you@frequency.fm"
+              class="flex-1 bg-transparent px-4 py-3.5 text-bone placeholder:text-muted focus:outline-none font-mono text-[13px]"/>
+            <button class="shrink-0 bg-bone text-ink px-5 font-mono text-[11px] uppercase tracking-wider3 hover:bg-amber transition-colors">Tune in ↗</button>
+          </div>
+          <div class="done hidden font-mono text-[10.5px] uppercase tracking-wider3 text-phos pt-1">◉ Locked. Welcome aboard.</div>
+        </form>
+      </div>
+    </div>
+  </section>
+
+  <!-- ======================= FOOTER ======================= -->
+  <footer class="border-t border-rule bg-ink">
+    <div class="mx-auto max-w-[1360px] px-6 md:px-10 py-14">
+      <div class="grid grid-cols-12 gap-8">
+        <div class="col-span-12 md:col-span-5 space-y-4">
+          <div class="flex items-center gap-3">
+            <svg width="30" height="30" viewBox="0 0 48 48" class="text-amber">
+              <circle cx="24" cy="24" r="21" fill="none" stroke="currentColor" stroke-width="1.4"/>
+              <line x1="24" y1="3" x2="24" y2="11" stroke="currentColor" stroke-width="1.4"/>
+              <line x1="24" y1="24" x2="36" y2="24" stroke="currentColor" stroke-width="1.4"/>
+              <circle cx="24" cy="24" r="1.8" fill="currentColor"/>
+            </svg>
+            <div class="display-head text-bone text-[26px]">IPC<span class="text-amber">.</span></div>
+          </div>
+          <p class="font-serif text-parch text-[16px] leading-[1.6] max-w-[38ch]">
+            Instructions Per Clock is a band from Los Angeles, California.
+            Recording on tape, mixing in cars, touring in a van with a broken heater.
+          </p>
+        </div>
+
+        <div class="col-span-6 md:col-span-2 space-y-3">
+          <div class="font-mono text-[10px] uppercase tracking-wider3 text-muted">Channels</div>
+          <ul class="space-y-2 font-serif text-bone text-[15px]">
+            <li><a href="#signal" class="hover:text-amber transition-colors">Signal</a></li>
+            <li><a href="#itinerary" class="hover:text-amber transition-colors">Itinerary</a></li>
+            <li><a href="#log" class="hover:text-amber transition-colors">Log</a></li>
+            <li><a href="#frames" class="hover:text-amber transition-colors">Frames</a></li>
+            <li><a href="#about" class="hover:text-amber transition-colors">About</a></li>
+          </ul>
+        </div>
+
+        <div class="col-span-6 md:col-span-2 space-y-3">
+          <div class="font-mono text-[10px] uppercase tracking-wider3 text-muted">Listen</div>
+          <ul class="space-y-2 font-serif text-bone text-[15px]">
+            <li><a href="#" class="hover:text-amber transition-colors">Bandcamp</a></li>
+            <li><a href="#" class="hover:text-amber transition-colors">Spotify</a></li>
+            <li><a href="#" class="hover:text-amber transition-colors">Apple Music</a></li>
+            <li><a href="#" class="hover:text-amber transition-colors">YouTube</a></li>
+          </ul>
+        </div>
+
+        <div class="col-span-12 md:col-span-3 space-y-3">
+          <div class="font-mono text-[10px] uppercase tracking-wider3 text-muted">Contact</div>
+          <ul class="space-y-2 font-serif text-bone text-[15px]">
+            <li>Booking &mdash; <a href="mailto:booking@ipc.band" class="hover:text-amber transition-colors">booking@ipc.band</a></li>
+            <li>Press &mdash; <a href="mailto:press@ipc.band" class="hover:text-amber transition-colors">press@ipc.band</a></li>
+            <li>Everything else &mdash; <a href="mailto:hello@ipc.band" class="hover:text-amber transition-colors">hello@ipc.band</a></li>
+          </ul>
+          <div class="flex gap-4 pt-2 font-mono text-[10.5px] uppercase tracking-wider3">
+            <a href="#" class="text-bone hover:text-amber transition-colors">IG</a>
+            <a href="#" class="text-bone hover:text-amber transition-colors">BC</a>
+            <a href="#" class="text-bone hover:text-amber transition-colors">YT</a>
+            <a href="#" class="text-bone hover:text-amber transition-colors">TT</a>
+          </div>
+        </div>
+      </div>
+
+      <div class="hr-thin my-10"></div>
+
+      <div class="flex flex-col md:flex-row justify-between gap-3 font-mono text-[10px] uppercase tracking-wider3 text-muted">
+        <div>© <span class="tabular-nums">2022&ndash;2026</span> Instructions Per Clock · All rights reserved</div>
+        <div class="flex items-center gap-4">
+          <span>SESSION · <span class="text-bone tabular-nums" id="session">0x4A—7F</span></span>
+          <span>BUILD · <span class="text-bone">v0.1.0</span></span>
+          <span class="inline-flex items-center gap-1.5"><span class="w-1.5 h-1.5 rounded-full bg-phos breathe"></span> <span class="text-bone">ON AIR</span></span>
+        </div>
+      </div>
+    </div>
+  </footer>
+
+  <script>
+    // Live clock
+    const clockEl = document.getElementById('clock');
+    function fmt(n){ return String(n).padStart(2,'0'); }
+    function tick(){
+      const d = new Date();
+      clockEl.textContent = `${fmt(d.getHours())}:${fmt(d.getMinutes())}:${fmt(d.getSeconds())}`;
+    }
+    tick(); setInterval(tick, 1000);
+
+    // Session hex (stable-ish during page life)
+    const s = Math.floor(Math.random()*255).toString(16).toUpperCase().padStart(2,'0');
+    const t = Math.floor(Math.random()*255).toString(16).toUpperCase().padStart(2,'0');
+    document.getElementById('session').textContent = `0x${s}—${t}`;
+  </script>
+</body>
+</html>
