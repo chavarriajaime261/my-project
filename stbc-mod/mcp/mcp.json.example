@@ -1,0 +1,10 @@
+{
+  "_comment": "Blender MCP server for Claude Code. Merge the 'blender' entry into your Claude Code MCP config (project .mcp.json or user settings). Requires 'uv' installed and the Blender MCP add-on running inside an open Blender session (N-panel > BlenderMCP > Start MCP Server). See ../docs/02-mcp-setup.md.",
+  "_install_cli_alternative": "claude mcp add blender -- uvx blender-mcp",
+  "mcpServers": {
+    "blender": {
+      "command": "uvx",
+      "args": ["blender-mcp"]
+    }
+  }
+}
