@@ -32,7 +32,7 @@ this toolkit front-loads.
 stbc-mod/
 ├── docs/        ← read these in order (00 → 06)
 ├── templates/   ← reusable annotated hardpoint + ship script templates
-├── ships/       ← per-ship projects (first: ships/unsc-frigate/)
+├── ships/       ← per-ship projects (unsc-frigate, pillar-of-autumn, covenant-cruiser)
 ├── mcp/         ← Blender MCP config for Claude Code
 └── tools/       ← optional helper scripts
 ```
@@ -47,7 +47,11 @@ stbc-mod/
 6. **`docs/05-cross-universe-guide.md`** — sourcing models + lore-accurate balance tables.
 7. **`docs/06-legal-sourcing.md`** — keep it personal/non-commercial; respect model licenses.
 
-Then look at **`ships/unsc-frigate/`** for the first worked example.
+Then look at the worked ship examples:
+- **`ships/unsc-frigate/`** — UNSC Charon-class frigate (start here; simple mesh)
+- **`ships/pillar-of-autumn/`** — UNSC Halcyon-class cruiser (iconic capital ship)
+- **`ships/covenant-cruiser/`** — Covenant CCS-class battlecruiser (lore-accurate UNSC
+  sparring partner — shields + plasma + energy projector)
 
 ---
 

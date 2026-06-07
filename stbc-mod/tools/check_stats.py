@@ -98,17 +98,61 @@ UNSC_FRIGATE = {
 }
 
 
+PILLAR_OF_AUTUMN = {
+    "name": "UNSC Pillar of Autumn (Halcyon-class)",
+    "hull": 26000,
+    "shields": {"front": 0, "rear": 0, "top": 0, "bottom": 0,
+                "left": 0, "right": 0, "recharge": 0},
+    "weapons": [
+        {"name": "MAC_Gun", "type": "pulse", "damage": 13000, "recharge": 16.0,
+         "arc_h": 15, "arc_v": 15, "range": 1.7, "muzzles": ["hp_MAC"]},
+        {"name": "Archer_Pods", "type": "torpedo", "damage": 400, "ammo": 260,
+         "reload": 0.30, "arc_h": 120, "arc_v": 80,
+         "muzzles": ["hp_Archer_L", "hp_Archer_R", "hp_Archer_D"]},
+        {"name": "Shiva", "type": "torpedo", "damage": 30000, "ammo": 3,
+         "reload": 45.0, "arc_h": 30, "arc_v": 30, "muzzles": ["hp_Shiva"]},
+        {"name": "PD_50mm", "type": "pulse", "damage": 55, "recharge": 0.16,
+         "arc_h": 220, "arc_v": 160, "range": 0.45,
+         "muzzles": ["hp_PD_1", "hp_PD_2", "hp_PD_3",
+                     "hp_PD_4", "hp_PD_5", "hp_PD_6"]},
+    ],
+}
+
+COVENANT_CRUISER = {
+    "name": "Covenant Battlecruiser (CCS-class)",
+    "hull": 11000,
+    "shields": {"front": 9000, "rear": 9000, "top": 9000, "bottom": 9000,
+                "left": 9000, "right": 9000, "recharge": 450},
+    "weapons": [
+        {"name": "Energy_Projector", "type": "beam", "damage": 1300,
+         "recharge": 24.0, "arc_h": 12, "arc_v": 12, "range": 1.8,
+         "muzzles": ["hp_Projector"]},
+        {"name": "Plasma_Torpedo", "type": "torpedo", "damage": 1600, "ammo": 40,
+         "reload": 5.5, "arc_h": 140, "arc_v": 100,
+         "muzzles": ["hp_Plasma_L", "hp_Plasma_R"]},
+        {"name": "Pulse_Lasers", "type": "pulse", "damage": 210, "recharge": 0.30,
+         "arc_h": 200, "arc_v": 150, "range": 0.7,
+         "muzzles": ["hp_Pulse_1", "hp_Pulse_2", "hp_Pulse_3", "hp_Pulse_4"]},
+    ],
+}
+
+ALL_SHIPS = [UNSC_FRIGATE, PILLAR_OF_AUTUMN, COVENANT_CRUISER]
+
+
 def main() -> int:
-    warns = check_ship(UNSC_FRIGATE)
-    print(f"Checking: {UNSC_FRIGATE['name']}")
-    if not warns:
-        print("  OK — no issues.")
-        return 0
-    issues = [x for x in warns if "INFO:" not in x]
-    for x in warns:
-        print(f"  - {x}")
-    print(f"\n{len(issues)} issue(s), {len(warns) - len(issues)} info note(s).")
-    return 1 if issues else 0
+    total_issues = 0
+    for ship in ALL_SHIPS:
+        warns = check_ship(ship)
+        print(f"Checking: {ship['name']}")
+        if not warns:
+            print("  OK — no issues.")
+            continue
+        issues = [x for x in warns if "INFO:" not in x]
+        total_issues += len(issues)
+        for x in warns:
+            print(f"  - {x}")
+        print(f"  -> {len(issues)} issue(s), {len(warns) - len(issues)} info note(s).")
+    return 1 if total_issues else 0
 
 
 if __name__ == "__main__":
