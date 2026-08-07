@@ -1,8 +1,11 @@
-﻿# RESTORE-NOTES.md — JaimeClaude project restore (2026-08-06)
+﻿# RESTORE-NOTES.md — my-project (frontend harness) restore (2026-08-06)
 
-This folder is the restored "JaimeClaude" harness project, recovered from
-https://github.com/chavarriajaime261/my-project onto this machine. (A repo literally
-named `JaimeClaude` does not exist on GitHub — `my-project` is the project.)
+This folder is the restored frontend-design harness project, recovered from
+https://github.com/chavarriajaime261/my-project onto this machine.
+
+> Correction: the actual **JaimeClaude** (personal TypeScript AI coding agent) turned out
+> to be a separate **private** repo — `chavarriajaime261/JaimeClaude` — restored alongside
+> this folder at `..\JaimeClaude\`. This folder is the frontend harness + stbc-mod toolkit.
 
 ## What this project is
 A Claude Code **frontend-design harness**: `AGENTS.md`/`CLAUDE.md` rules + `serve.mjs`
