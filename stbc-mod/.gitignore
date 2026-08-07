@@ -1,0 +1,19 @@
+# Binary art / model files — produced on the PC, not tracked in the repo.
+# (Avoids committing large binaries and copyrighted assets.)
+*.nif
+*.tga
+*.blend
+*.blend[0-9]*
+*.obj
+*.fbx
+*.gltf
+*.glb
+*.dds
+*.bmp
+
+# but keep the explanatory READMEs inside asset folders
+!**/assets/README.md
+
+# Python cruft from tools/
+__pycache__/
+*.pyc
